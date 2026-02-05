@@ -92,7 +92,7 @@
 
   .revealBox{
     display:grid;
-    gap:8px;
+    gap:10px;
   }
 
   .reveal{
@@ -113,6 +113,30 @@
     color:transparent;
     text-shadow:0 0 18px rgba(233,238,252,.25);
   }
+
+  /* IMAGEN */
+  .imgBox{
+    border:1px solid var(--line);
+    background:rgba(0,0,0,.18);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .imgBox img{
+    width:100%;
+    max-height:260px;
+    object-fit:cover;
+    display:block;
+  }
+  .imgHint{
+    padding:10px 12px;
+    color:var(--mut);
+    font-weight:800;
+    font-size:12px;
+    letter-spacing:.2px;
+  }
+  .imgBox.empty img{ display:none; }
+  .imgBox.empty .imgHint{ display:block; }
+  .imgBox:not(.empty) .imgHint{ display:none; }
 
   .nextBelow{
     display:none;
@@ -260,15 +284,13 @@
 
     <div class="revealBox">
       <div class="reveal hidden" id="revealWord">PALABRA</div>
-      <img id="wordImg" alt="" style="
-  width:100%;
-  max-height:260px;
-  object-fit:cover;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.18);
-  display:block;
-">
+
+      <!-- IMAGEN (Wikipedia: URL exacta de imagen) -->
+      <div class="imgBox empty" id="imgBox">
+        <img id="wordImg" alt="">
+        <div class="imgHint">SIN IMAGEN PARA ESTA PALABRA</div>
+      </div>
+
       <div class="nextBelow" id="nextBelow">
         <button class="btn" id="btnNext" aria-label="Siguiente">➡️ SIGUIENTE</button>
       </div>
@@ -320,41 +342,16 @@ const elPool = document.getElementById("pool");
 const elAnswer = document.getElementById("answer");
 const elMsg = document.getElementById("msg");
 const elReveal = document.getElementById("revealWord");
-const elImg = document.getElementById("wordImg");
-
-let imgReqId = 0;
-
-async function updateImage(){
-  const req = ++imgReqId;
-
-  const url = "https://es.wikipedia.org/api/rest_v1/page/summary/" +
-              encodeURIComponent(target);
-
-  elImg.removeAttribute("src");
-
-  try{
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if(req !== imgReqId) return;
-
-    const src = data?.thumbnail?.source ||
-                data?.originalimage?.source;
-
-    if(src){
-      elImg.src = src;
-    }
-  }catch(e){
-    elImg.removeAttribute("src");
-  }
-}
- 
 const elScore = document.getElementById("score");
 const elNextBelow = document.getElementById("nextBelow");
 const btnSpeak = document.getElementById("btnSpeak");
 const btnEye = document.getElementById("btnEye");
 const btnClear = document.getElementById("btnClear");
 const btnNext = document.getElementById("btnNext");
+
+/* Imagen */
+const elImg = document.getElementById("wordImg");
+const elImgBox = document.getElementById("imgBox");
 
 /* =========================
    UTIL
@@ -489,6 +486,62 @@ function speakWord(onEnd){
 }
 
 /* =========================
+   IMAGEN: Wikipedia REST -> URL exacta (thumbnail.source)
+   ========================= */
+
+// Para algunos términos puede ir mejor forzar un título claro.
+// Puedes ampliar esto cuando quieras.
+const WIKI_MAP = {
+  "RANA":"Rana",
+  "SAPO":"Sapo",
+  "FOCA":"Foca",
+  "LOBO":"Lobo",
+  "LEON":"León",
+  "GATO":"Gato",
+  "PATO":"Pato",
+  "VACA":"Vaca",
+  "LUNA":"Luna",
+  "NUBE":"Nube",
+  "RAYO":"Rayo",
+  "HIEL":"Hielo"
+};
+
+let imgReqId = 0;
+
+async function updateImage(){
+  const req = ++imgReqId;
+
+  const term = (WIKI_MAP[target] || target);
+
+  // Limpiar imagen mientras carga
+  elImg.removeAttribute("src");
+  elImg.alt = term;
+  elImgBox.classList.add("empty");
+
+  const url = "https://es.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(term);
+
+  try{
+    const res = await fetch(url, { cache:"no-store" });
+    if(!res.ok) throw new Error("wiki not ok");
+    const data = await res.json();
+
+    if(req !== imgReqId) return;
+
+    const src = data?.thumbnail?.source || data?.originalimage?.source;
+    if(src){
+      elImg.src = src;         // ✅ URL exacta de imagen
+      elImgBox.classList.remove("empty");
+      return;
+    }
+
+    // si no hay imagen, se queda en modo "empty"
+  }catch(e){
+    if(req !== imgReqId) return;
+    // se queda en modo "empty"
+  }
+}
+
+/* =========================
    JUEGO
    ========================= */
 function pickRandomWord(){
@@ -523,8 +576,10 @@ function startWord(){
   pickRandomWord();
   buildPool();
   buildSlots();
-  updateImage();
   render();
+
+  // 👇 CARGA IMAGEN PARA LA PALABRA ACTUAL
+  updateImage();
 }
 
 function render(){
@@ -749,7 +804,3 @@ startWord();
 
 </body>
 </html>
-
-
-
-

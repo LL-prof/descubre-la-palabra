@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordena palabra + voz (drag) + puntos</title>
+<style>
+  :root{
+    --bg:#0f1320;
+    --card:rgba(255,255,255,.06);
+    --line:rgba(255,255,255,.12);
+    --txt:#e9eefc;
+    --mut:#aab3cf;
+    --ok:#31d27c;
+    --bad:#ff5c5c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(1200px 700px at 30% 10%, #1a2340 0%, var(--bg) 60%, #070a11 100%);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    color:var(--txt);
+    padding:14px;
+  }
+
+  .app{
+    width:min(980px, 100%);
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,0,0,.35);
+    position:relative;
+  }
+
+  .wrap{
+    padding:14px;
+    display:grid;
+    gap:12px;
+  }
+
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .leftBtns{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  .btn{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.06);
+    color:var(--txt);
+    height:44px;
+    min-width:44px;
+    padding:0 12px;
+    border-radius:14px;
+    cursor:pointer;
+    font-weight:800;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+  }
+  .btn:hover{ background:rgba(255,255,255,.10) }
+  .btn:active{ transform:translateY(1px) }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+
+  .score{
+    border:1px solid var(--line);
+    background:rgba(0,0,0,.18);
+    border-radius:14px;
+    height:44px;
+    padding:0 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:900;
+    letter-spacing:.3px;
+    user-select:none;
+  }
+  .score small{
+    color:var(--mut);
+    font-weight:800;
+    letter-spacing:.2px;
+  }
+
+  .revealBox{
+    display:grid;
+    gap:8px;
+  }
+
+  .reveal{
+    border:1px solid var(--line);
+    background:rgba(0,0,0,.18);
+    border-radius:16px;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:30px;
+    letter-spacing:2px;
+    font-weight:900;
+    overflow:hidden;
+    padding:0 12px;
+  }
+  .reveal.hidden{
+    color:transparent;
+    text-shadow:0 0 18px rgba(233,238,252,.25);
+  }
+
+  .nextBelow{
+    display:none;
+    justify-content:center;
+  }
+  .nextBelow .btn{
+    width:min(320px, 100%);
+    height:46px;
+    border-radius:16px;
+  }
+
+  /* POOL FIJO */
+  .pool{
+    display:grid;
+    grid-template-columns: repeat(10, 52px);
+    gap:10px;
+    justify-content:start;
+    align-content:start;
+  }
+  @media (max-width: 720px){
+    .pool{ grid-template-columns: repeat(6, 52px); }
+  }
+
+  .answer{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    min-height:52px;
+  }
+
+  .tile{
+    width:52px;
+    height:52px;
+    display:grid;
+    place-items:center;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.08);
+    font-size:22px;
+    font-weight:900;
+    user-select:none;
+    cursor:grab;
+  }
+  .tile:active{ cursor:grabbing; }
+
+  .tile.used{
+    opacity:.35;
+    cursor:not-allowed;
+  }
+
+  .slot{
+    width:52px;
+    height:52px;
+    display:grid;
+    place-items:center;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.03);
+    font-size:22px;
+    font-weight:900;
+    user-select:none;
+    position:relative;
+  }
+
+  .slot.filled{
+    background:rgba(255,255,255,.08);
+    cursor:grab;
+  }
+  .slot.filled:active{ cursor:grabbing; }
+
+  .slot.dropok{
+    outline:2px solid rgba(122,162,255,.35);
+    outline-offset:2px;
+  }
+
+  /* feedback mínimo */
+  .msg{
+    height:22px;
+    font-weight:900;
+    letter-spacing:.5px;
+  }
+  .msg.ok{ color:var(--ok) }
+  .msg.bad{ color:var(--bad) }
+  .msg.neutral{ color:transparent }
+
+  /* FX overlay */
+  .fxLayer{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+
+  .pop{
+    position:absolute;
+    font-weight:1000;
+    letter-spacing:.2px;
+    transform:translate(-50%,-50%);
+    opacity:0;
+    animation: popUp 700ms ease-out forwards;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,.45));
+    user-select:none;
+    white-space:nowrap;
+  }
+  .pop .p1{ font-size:18px; color:var(--txt); }
+  .pop .p2{ font-size:14px; color:rgba(233,238,252,.92); margin-left:6px; }
+
+  @keyframes popUp{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(.9); }
+    10%{ opacity:1; }
+    100%{ opacity:0; transform:translate(-50%,-105%) scale(1.08); }
+  }
+
+  .spark{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    opacity:0;
+    animation: sparkUp 900ms ease-out forwards;
+    user-select:none;
+  }
+  @keyframes sparkUp{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(.9); }
+    10%{ opacity:1; }
+    100%{ opacity:0; transform:translate(calc(-50% + var(--dx)), calc(-160% + var(--dy))) scale(1.15); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="fxLayer" id="fx"></div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="leftBtns">
+        <button class="btn" id="btnSpeak" aria-label="Reproducir">▶️</button>
+        <button class="btn" id="btnEye" aria-label="Ver palabra">👁️</button>
+        <button class="btn" id="btnClear" aria-label="Borrar">↩️</button>
+      </div>
+
+      <div class="score" aria-label="Puntuación">
+        ⭐ <small>PUNTOS</small> <span id="score">0</span>
+      </div>
+    </div>
+
+    <div class="revealBox">
+      <div class="reveal hidden" id="revealWord">PALABRA</div>
+      <div class="nextBelow" id="nextBelow">
+        <button class="btn" id="btnNext" aria-label="Siguiente">➡️ SIGUIENTE</button>
+      </div>
+    </div>
+
+    <div class="pool" id="pool"></div>
+    <div class="answer" id="answer"></div>
+    <div class="msg neutral" id="msg">.</div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   PALABRAS: SOLO ESTAS (pega tus 1000 aquí tal cual)
+   ========================= */
+const WORDS = [
+  "GATO","PERRO","CASA","SILLA","MESA","CAMA","SOFÁ","PUERTA","VENTANA","TECHO","SUELO","PARED","COCINA","BAÑO","SALÓN","CUARTO",
+  "LLAVE","RELOJ","ESPEJO","LAMPA","LÁMPARA","CORTINA","ALFOMBRA","CAJÓN","CAJA","CESTA","BOLSA","MOCHILA","BOLSO","MALETA",
+  "PLATO","VASO","TAZA","CUCHARA","TENEDOR","CUCHILLO","SERVILLETA","BOTELLA","JARRA","SARTÉN","OLLA","HORNO","NEVERA","FUEGO",
+  "JABÓN","CHAMPÚ","CEPILLO","PEINE","TOALLA","DUCHA","BAÑERA","PAPEL","PAÑAL","CREMA","PASTA","LAVABO","ESCOBA","FREGONA",
+  "LIBRO","CUENTO","HOJA","PAPELERA","LÁPIZ","BOLI","GOMA","SACAPUNTAS","REGLA","TIJERA","PEGAMENTO","PINTURA","PINCEL","CERAS",
+  "PIZARRA","TIZA","CARPETA","ESTUCHE","MESA","SILLA","CLASE","COLE","ESCUELA","PROFE","ALUMNO","AMIGO","AMIGA","EQUIPO","GRUPO",
+  "PATIOS","PATIO","PARQUE","PLAYA","RÍO","LAGO","MAR","MONTE","MONTAÑA","BOSQUE","CAMPO","CIUDAD","PUEBLO","CALLE","PLAZA","PUENTE",
+  "SOL","LUNA","NUBE","LLUVIA","NIEVE","VIENTO","RAYO","TRUENO","ARCOIRIS","ESTRELLA","CIELO","TIERRA","ARENA","PIEDRA","ROCA","BARRO",
+  "ARBOL","HOJA","FLOR","PINO","ROSA","LIRIO","TULIPAN","MARGARITA","SEMILLA","RAIZ","TRONCO","RAMA","HIERBA","CESPED","HUERTO","JARDIN",
+  "AGUA","ZUMO","LECHE","CACAO","TE","CAFE","SOPA","ARROZ","PASTA","PAN","TOSTA","GALLETA","TARTA","PASTEL","HELADO","CARAMELO",
+  "QUESO","YOGUR","HUEVO","POLLO","PAVO","PESCADO","ATUN","SARDINA","SAL","AZUCAR","MIEL","ACEITE","MANTECA","JAMON","CHORIZO",
+  "TOMATE","PATATA","ZANAHORIA","PEPINO","LECHUGA","MAIZ","GUISANTE","LENTEJA","GARBANZO","JUDIA","CEBOLLA","AJO","PIMIENTO","CALABAZA",
+  "MANZANA","PERA","PLATANO","UVA","FRESA","NARANJA","LIMON","KIWI","CEREZA","MELON","SANDIA","PIÑA","MANGO","COCO","ALBARICOQUE","CIRUELA",
+  "GATO","PERRO","PATO","VACA","CABALLO","BURRO","CERDO","OVEJA","CABRA","GALLINA","GALLO","PAVO","POLLO","CONEJO","RATON","HAMSTER",
+  "LEON","TIGRE","CEBRA","JIRAFA","ELEFANTE","MONO","GORILA","PANDA","KOALA","OSO","LOBO","ZORRO","CIERVO","ARDILLA","MAPACHE","NUTRIA",
+  "RANA","SAPO","PEZ","FOCA","DELFIN","BALLENA","TIBURON","PULPO","CALAMAR","CANGREJO","ESTRELLAMAR","CABALLITOMAR","TORTUGA","COCODRILO",
+  "AGUILA","BUHO","LORO","PALOMA","GORRION","CISNE","PATO","FLAMENCO","PINGUINO","GAVIOTA","CANARIO","CUERVO","COLIBRI","AVESTRUZ","HALCON",
+  "ABEJA","HORMIGA","MARIPOSA","MOSCA","GRILLO","SALTAMONTES","ESCARABAJO","MARIQUITA","ARAÑA","CARACOL","ORUGA","LIBELULA","AVISPA","POLILLA",
+  "COCHE","CAMION","MOTO","BICI","BICICLETA","PATIN","PATINETE","TREN","AVION","BARCO","SUBMARINO","HELICOPTERO","AMBULANCIA","POLICIA","BOMBERO",
+  "SEMÁFORO","SEMAFORO","CARRETERA","CALZADA","ACERA","PARKING","GARAJE","TALLER","GASOLINA","RUEDA","PUERTA","VOLANTE","ASIENTO","CINTURON","CASCO",
+  "PELOTA","BALON","MUÑECA","MUÑECO","OSITO","ROMPECABEZAS","PUZZLE","CUBO","DADO","FICHA","CARTA","DOMINO","AJEDREZ","DAMAS","CANICAS",
+  "COMETA","GLOBO","COLLAR","PULSERA","ANILLO","CORONA","ESPADA","ESCUDO","VARITA","MAGIA","HADA","DUENDE","DRAGON","UNICORNIO","DINOSAURIO",
+  "ROBOT","COHETE","PLANETA","SATELITE","METEORO","ASTEROIDE","GALAXIA","ESPACIO","CASCO","TRUCO","RISA","SONRISA","LLANTO","BESO","ABRAZO",
+  "OJO","NARIZ","BOCA","OREJA","DIENTE","LENGUA","CABEZA","PELO","CUELLO","HOMBRO","BRAZO","CODO","MANO","DEDO","UÑA","PIERNA","RODILLA","PIE",
+  "BARRIGA","ESPALDA","CORAZON","SANGRE","HUESO","MUSCULO","PULMON","ESTOMAGO","CEREBRO","CARA","LABIO","CEJA","PESTAÑA","MEJILLA","BARBILLA",
+  "ROJO","AZUL","VERDE","AMARILLO","NARANJA","MORADO","ROSA","NEGRO","BLANCO","GRIS","MARRON","DORADO","PLATEADO","CLARO","OSCURO","BRILLANTE",
+  "PEQUEÑO","GRANDE","ALTO","BAJO","LARGO","CORTO","GORDO","DELgado".toUpperCase(),"RAPIDO","LENTO","DURO","BLANDO","FRIO","CALIENTE","TIBIO",
+  "SALTAR","CORRER","ANDAR","CAMINAR","NADAR","VOLVER","IR","VENIR","SUBIR","BAJAR","ABRIR","CERRAR","COMER","BEBER","DORMIR","JUGAR","CANTAR",
+  "BAILAR","PINTAR","LEER","ESCRIBIR","MIRAR","OIR","TOCAR","REIR","LLORAR","AYUDAR","DAR","COGER","SOLTAR","PONER","QUITAR","LAVAR","SECAR",
+  "DIBUJO","MUSICA","CANCION","BAILE","TEATRO","CINE","FOTO","CAMARA","RADIO","TELE","TELEVISION","MOVIL","TABLET","ORDENADOR","PANTALLA","TECLADO",
+  "RATONPC","ALTAVOZ","AURICULAR","CARGADOR","BATERIA","LINTERNA","PILA","CABLE","BOTON","MENSAJE","LLAMADA","VIDEO","JUEGO","NIVEL","PANTALLA",
+  "HOSPITAL","DOCTOR","MEDICO","ENFERMERA","CURITA","VENDA","JERINGA","PASTILLA","GOTA","TERMOMETRO","FIEBRE","TOS","MOCOS","DOLOR","SUEÑO",
+  "PANADERIA","TIENDA","MERCADO","FRUTERIA","CARNICERIA","PESCADERIA","JUGUETERIA","LIBRERIA","COLEGIO","BIBLIOTECA","MUSEO","ZOO","CIRCO",
+  "POLICIA","BOMBERO","MAESTRO","MAESTRA","COCINERO","PANADERO","PILOTO","MARINERO","GRANJERO","VETERINARIO","CARPINTERO","PINTOR","MECANICO",
+  "NAVIDAD","CUMPLE","FIESTA","TARTA","VELA","REGALO","GLOBO","CONFETI","PIÑATA","DISFRAZ","MASCARA","SOMBRERO","CORONA","BAILE","MUSICA",
+  "LUNES","MARTES","MIERCOLES","JUEVES","VIERNES","SABADO","DOMINGO","ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO","AGOSTO","SEPTIEMBRE",
+  "OCTUBRE","NOVIEMBRE","DICIEMBRE","MAÑANA","TARDE","NOCHE","HOY","AYER","AHORA","LUEGO","PRONTO","TARDE","SIEMPRE","NUNCA","AQUI","ALLI",
+  "UNO","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ","ONCE","DOCE","VEINTE","TREINTA","CIEN","MIL",
+  "CIRCULO","CUADRADO","TRIANGULO","RECTANGULO","ESTRELLA","CORAZON","FLECHA","LINEA","PUNTO","RAYA","COLOR","FORMA","TAMAÑO","MEDIDA","PESO",
+  "FAMILIA","PAPA","MAMA","ABUELO","ABUELA","TIO","TIA","PRIMO","PRIMA","HERMANO","HERMANA","BEBE","NIÑO","NIÑA","AMIGO","AMIGA",
+  "GEL","CREMA","COLONIA","ESPUMA","BURBUJA","JUGO","SABOR","OLOR","RUIDO","SILENCIO","SOMBRA","LUZ","FUEGO","HIELO","VAPOR","HUMO"
+  // 👉 SI QUIERES “MILES”, SIGUE PEGANDO MAS AQUI MISMO
+];
+/* =========================
+   ESTADO
+   ========================= */
+let target = "";
+let revealed = false;
+
+let poolItems = [];          // [{id, ch, used}]
+let slotItems = [];          // [null | {id, ch}]
+let slotScored = [];         // [bool] solo 1 punto por slot por palabra
+let perfect = true;          // bonus +1 si nunca hubo error/corrección
+let completed = false;
+
+let totalScore = 0;
+
+/* =========================
+   ELEMENTOS
+   ========================= */
+const elApp = document.getElementById("app");
+const elFx = document.getElementById("fx");
+const elPool = document.getElementById("pool");
+const elAnswer = document.getElementById("answer");
+const elMsg = document.getElementById("msg");
+const elReveal = document.getElementById("revealWord");
+const elScore = document.getElementById("score");
+const elNextBelow = document.getElementById("nextBelow");
+const btnSpeak = document.getElementById("btnSpeak");
+const btnEye = document.getElementById("btnEye");
+const btnClear = document.getElementById("btnClear");
+const btnNext = document.getElementById("btnNext");
+
+/* =========================
+   UTIL
+   ========================= */
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function setMessage(type){
+  if(type==="ok"){
+    elMsg.className = "msg ok";
+    elMsg.textContent = "✓";
+  } else if(type==="bad"){
+    elMsg.className = "msg bad";
+    elMsg.textContent = "✕";
+  } else {
+    elMsg.className = "msg neutral";
+    elMsg.textContent = ".";
+  }
+}
+
+function setScore(n){
+  totalScore = n;
+  elScore.textContent = String(totalScore);
+}
+
+function addScore(n){
+  setScore(totalScore + n);
+}
+
+/* =========================
+   AUDIO: clink (WebAudio)
+   ========================= */
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playClink(){
+  try{
+    const ctx = getAudioCtx();
+    const t0 = ctx.currentTime;
+
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1200, t0);
+    o.frequency.exponentialRampToValueAtTime(600, t0 + 0.06);
+
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+
+    o.connect(g).connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + 0.09);
+  }catch(e){}
+}
+
+/* =========================
+   FX: +1 y estrellitas
+   ========================= */
+function rectCenter(el){
+  const r = el.getBoundingClientRect();
+  const a = elApp.getBoundingClientRect();
+  return { x: (r.left + r.width/2) - a.left, y: (r.top + r.height/2) - a.top };
+}
+
+function fxPlusOneAt(el){
+  const {x,y} = rectCenter(el);
+
+  const pop = document.createElement("div");
+  pop.className = "pop";
+  pop.style.left = x+"px";
+  pop.style.top = y+"px";
+  pop.innerHTML = `<span class="p1">✦✦</span><span class="p2">+1</span>`;
+  elFx.appendChild(pop);
+  setTimeout(()=>pop.remove(), 800);
+
+  const stars = ["✦","✧","✦","✧"];
+  for(let i=0;i<stars.length;i++){
+    const s = document.createElement("div");
+    s.className = "spark";
+    s.textContent = stars[i];
+    s.style.left = x+"px";
+    s.style.top = y+"px";
+    s.style.fontSize = (14 + Math.floor(Math.random()*8)) + "px";
+    s.style.setProperty("--dx", (Math.random()*80 - 40).toFixed(1)+"px");
+    s.style.setProperty("--dy", (Math.random()*40 - 20).toFixed(1)+"px");
+    elFx.appendChild(s);
+    setTimeout(()=>s.remove(), 950);
+  }
+}
+
+/* =========================
+   VOZ (elige ES si puede)
+   ========================= */
+let chosenVoice = null;
+
+function chooseVoice(){
+  if(!("speechSynthesis" in window)) return;
+  const vs = speechSynthesis.getVoices() || [];
+  if(!vs.length) return;
+
+  const esES = vs.find(v => (v.lang||"").toLowerCase() === "es-es");
+  const esAny = vs.find(v => (v.lang||"").toLowerCase().startsWith("es"));
+  chosenVoice = esES || esAny || vs[0];
+}
+
+if("speechSynthesis" in window){
+  chooseVoice();
+  speechSynthesis.onvoiceschanged = chooseVoice;
+}
+
+function speakWord(onEnd){
+  if(!("speechSynthesis" in window)) { if(onEnd) onEnd(); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(target);
+  u.lang = "es-ES";
+  u.rate = 0.95;
+  u.pitch = 1;
+  if(chosenVoice) u.voice = chosenVoice;
+  u.onend = ()=>{ if(onEnd) onEnd(); };
+  u.onerror = ()=>{ if(onEnd) onEnd(); };
+  speechSynthesis.speak(u);
+}
+
+/* =========================
+   JUEGO
+   ========================= */
+function pickRandomWord(){
+  const i = Math.floor(Math.random()*WORDS.length);
+  target = WORDS[i].toUpperCase();
+}
+
+function buildPool(){
+  const letters = shuffle(target.split(""));
+  poolItems = letters.map((ch, idx) => ({ id: "p"+idx+"_"+ch, ch, used:false }));
+}
+
+function buildSlots(){
+  slotItems = Array.from({length: target.length}, () => null);
+  slotScored = Array.from({length: target.length}, () => false);
+}
+
+function lockUI(lock){
+  completed = lock;
+  btnClear.disabled = lock ? true : false;
+  btnEye.disabled = false;
+  btnSpeak.disabled = false;
+}
+
+function startWord(){
+  revealed = false;
+  perfect = true;
+  lockUI(false);
+  elNextBelow.style.display = "none";
+  setMessage("neutral");
+
+  pickRandomWord();
+  buildPool();
+  buildSlots();
+  render();
+}
+
+function render(){
+  elReveal.textContent = target;
+  elReveal.classList.toggle("hidden", !revealed);
+
+  // POOL
+  elPool.innerHTML = "";
+  poolItems.forEach(item=>{
+    const d = document.createElement("div");
+    d.className = "tile" + (item.used ? " used" : "");
+    d.textContent = item.ch;
+
+    const canDrag = !completed && !item.used;
+    d.draggable = canDrag;
+    d.dataset.kind = "pool";
+    d.dataset.id = item.id;
+
+    d.addEventListener("dragstart", (e)=>{
+      if(!canDrag) return e.preventDefault();
+      e.dataTransfer.setData("text/plain", JSON.stringify({ from:"pool", id:item.id }));
+    });
+
+    // aceptar devolución desde slot (drag desde slot -> soltar sobre pool tile)
+    d.addEventListener("dragover", (e)=> { if(!completed) e.preventDefault(); });
+    d.addEventListener("drop", (e)=>{
+      if(completed) return;
+      e.preventDefault();
+      const data = safeParse(e.dataTransfer.getData("text/plain"));
+      if(!data || data.from !== "slot") return;
+
+      const fromIndex = data.index;
+      const moved = slotItems[fromIndex];
+      if(!moved) return;
+
+      // devolver
+      const p = poolItems.find(x=>x.id === moved.id);
+      if(p) p.used = false;
+      slotItems[fromIndex] = null;
+
+      perfect = false; // ha corregido
+      setMessage("neutral");
+      render();
+    });
+
+    elPool.appendChild(d);
+  });
+
+  // SLOTS
+  elAnswer.innerHTML = "";
+  slotItems.forEach((val, i)=>{
+    const s = document.createElement("div");
+    s.className = "slot" + (val ? " filled" : "");
+    s.textContent = val ? val.ch : "";
+    s.dataset.index = String(i);
+
+    // drag desde slot
+    if(val && !completed){
+      s.draggable = true;
+      s.addEventListener("dragstart", (e)=>{
+        e.dataTransfer.setData("text/plain", JSON.stringify({ from:"slot", index:i }));
+      });
+    }
+
+    // drop
+    s.addEventListener("dragover", (e)=>{
+      if(completed) return;
+      e.preventDefault();
+      s.classList.add("dropok");
+    });
+    s.addEventListener("dragleave", ()=> s.classList.remove("dropok"));
+    s.addEventListener("drop", (e)=>{
+      if(completed) return;
+      e.preventDefault();
+      s.classList.remove("dropok");
+      const data = safeParse(e.dataTransfer.getData("text/plain"));
+      if(!data) return;
+
+      // pool -> slot (solo si slot vacío)
+      if(data.from === "pool"){
+        const p = poolItems.find(x=>x.id === data.id);
+        if(!p || p.used) return;
+        if(slotItems[i]) return;
+
+        // colocar
+        slotItems[i] = { id:p.id, ch:p.ch };
+        p.used = true;
+
+        // ¿es correcta esta letra en esta posición?
+        onPlacement(i, p.ch, s);
+
+        setMessage("neutral");
+        render();
+        afterAnyMove();
+        return;
+      }
+
+      // slot -> slot (swap)
+      if(data.from === "slot"){
+        const from = data.index;
+        if(from === i) return;
+
+        const a = slotItems[from];
+        const b = slotItems[i];
+
+        slotItems[i] = a;
+        slotItems[from] = b;
+
+        // mover/swap cuenta como corrección si ya estaba tocando
+        perfect = false;
+
+        setMessage("neutral");
+        render();
+        afterAnyMove();
+        return;
+      }
+    });
+
+    elAnswer.appendChild(s);
+  });
+}
+
+function safeParse(s){
+  try{ return JSON.parse(s); }catch{ return null; }
+}
+
+/* =========================
+   PUNTOS por letra correcta
+   ========================= */
+function onPlacement(slotIndex, ch, slotEl){
+  // si coloca una letra en un sitio incorrecto en cualquier momento, ya no es “a la primera”
+  if(ch !== target[slotIndex]) perfect = false;
+
+  // si es correcta y aún no puntuó ese slot, suma +1
+  if(ch === target[slotIndex] && !slotScored[slotIndex]){
+    slotScored[slotIndex] = true;
+    addScore(1);
+    playClink();
+    fxPlusOneAt(slotEl);
+  }
+}
+
+/* =========================
+   COMPLETADO automático
+   ========================= */
+function isFilled(){
+  return slotItems.every(v=>v);
+}
+function attemptString(){
+  return slotItems.map(v=>v ? v.ch : "").join("");
+}
+function isCorrect(){
+  return isFilled() && attemptString() === target;
+}
+
+function afterAnyMove(){
+  // al completar correctamente:
+  if(isCorrect() && !completed){
+    completed = true;
+    lockUI(true);
+
+    // 1) tic verde
+    setMessage("ok");
+
+    // 2) clink
+    playClink();
+
+    // 3) voz
+    speakWord(()=>{
+      // bonus +1 si fue perfecto
+      if(perfect){
+        addScore(1);
+        // mini FX bonus en el centro de la palabra
+        fxPlusOneAt(elReveal);
+      }
+      // 4) aparece siguiente debajo (después de la voz)
+      elNextBelow.style.display = "flex";
+    });
+  }
+}
+
+/* =========================
+   CLEAR
+   ========================= */
+function clearAll(){
+  if(completed) return;
+  // devolver todo al pool (solo cambia opacidad)
+  slotItems.forEach(v=>{
+    if(v){
+      const p = poolItems.find(x=>x.id === v.id);
+      if(p) p.used = false;
+    }
+  });
+  slotItems = slotItems.map(()=>null);
+  perfect = false; // ya ha corregido
+  setMessage("neutral");
+  render();
+}
+
+/* =========================
+   BOTONES
+   ========================= */
+btnSpeak.onclick = ()=>{ if(!completed) speakWord(); };
+
+btnEye.onclick = ()=>{
+  revealed = !revealed;
+  elReveal.classList.toggle("hidden", !revealed);
+};
+
+btnClear.onclick = clearAll;
+
+btnNext.onclick = ()=>{
+  startWord();
+};
+
+/* =========================
+   INICIO: palabra aleatoria por sesión
+   ========================= */
+setScore(0);
+startWord();
+</script>
+
+</body>
+</html>
+

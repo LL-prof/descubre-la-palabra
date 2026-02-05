@@ -260,6 +260,15 @@
 
     <div class="revealBox">
       <div class="reveal hidden" id="revealWord">PALABRA</div>
+      <img id="wordImg" alt="" style="
+  width:100%;
+  max-height:260px;
+  object-fit:cover;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.18);
+  display:block;
+">
       <div class="nextBelow" id="nextBelow">
         <button class="btn" id="btnNext" aria-label="Siguiente">➡️ SIGUIENTE</button>
       </div>
@@ -311,6 +320,35 @@ const elPool = document.getElementById("pool");
 const elAnswer = document.getElementById("answer");
 const elMsg = document.getElementById("msg");
 const elReveal = document.getElementById("revealWord");
+const elImg = document.getElementById("wordImg");
+
+let imgReqId = 0;
+
+async function updateImage(){
+  const req = ++imgReqId;
+
+  const url = "https://es.wikipedia.org/api/rest_v1/page/summary/" +
+              encodeURIComponent(target);
+
+  elImg.removeAttribute("src");
+
+  try{
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if(req !== imgReqId) return;
+
+    const src = data?.thumbnail?.source ||
+                data?.originalimage?.source;
+
+    if(src){
+      elImg.src = src;
+    }
+  }catch(e){
+    elImg.removeAttribute("src");
+  }
+}
+ 
 const elScore = document.getElementById("score");
 const elNextBelow = document.getElementById("nextBelow");
 const btnSpeak = document.getElementById("btnSpeak");
@@ -485,6 +523,7 @@ function startWord(){
   pickRandomWord();
   buildPool();
   buildSlots();
+  updateImage();
   render();
 }
 
@@ -710,6 +749,7 @@ startWord();
 
 </body>
 </html>
+
 
 
 

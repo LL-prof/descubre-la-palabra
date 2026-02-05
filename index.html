@@ -114,7 +114,7 @@
     text-shadow:0 0 18px rgba(233,238,252,.25);
   }
 
-  /* IMAGEN (emoji SVG) */
+  /* IMAGEN (OpenMoji) */
   .imgBox{
     border:1px solid var(--line);
     background:rgba(0,0,0,.18);
@@ -127,7 +127,7 @@
   .imgBox img{
     width:100%;
     max-height:240px;
-    object-fit:contain; /* 👈 no estira, no borra */
+    object-fit:contain;
     display:block;
   }
 
@@ -278,7 +278,6 @@
     <div class="revealBox">
       <div class="reveal hidden" id="revealWord">PALABRA</div>
 
-      <!-- IMAGEN (OpenMoji SVG) -->
       <div class="imgBox">
         <img id="wordImg" alt="">
       </div>
@@ -296,131 +295,100 @@
 
 <script>
 /* =========================
-   100 PALABRAS (4 letras) + emoji asociado
+   MAPA PALABRA -> OPENMOJI CODEPOINT (lo memorizado)
    ========================= */
-const WORDS = [
-  "GATO","PATO","VACA","LOBO","FOCA","LEON","RANA","SAPO","TORO","BUEY",
-  "MONO","LORO","BUHO","PAVO","RATA","ORCA","RENO","AVES","OSOS","MULA",
-  "PERA","KIWI","UVAS","PINA","NUEZ","PAPA","MIEL","TACO","SOPA","CAFE",
-  "COLA","AGUA","LUNA","NUBE","RAYO","NIDO","ROCA","HOJA","FLOR","ROSA",
-  "PINO","SETA","LAVA","HIEL","ARCO","OLAS","LAGO","ISLA","RIOS","CAMA",
-  "BOTA","CAPA","DADO","BOLA","CUBO","BOLI","PALA","PICO","TELA","SACO",
-  "BOTE","TAPA","FARO","PILA","GASA","LUPA","MAPA","CAJA","ROPA","TAXI",
-  "TREN","BICI","MOTO","AUTO","NAVE","VELA","AZUL","ROJO","GRIS","FRIO",
-  "ALTO","BAJO","FINO","RISA","BESO","AMOR","ODIO","DUDA","PENA","BIEN",
-  "MALO","TAZA","VASO","CENA","FOTO","CINE","TELE","VIDA","TIRO","HORA"
-];
+const IMG_MAP = {
+  VAMPIRO:"1F9DB-200D-2640-FE0F",
+  NINJA:"1F977",
+  POLICIA:"1F46E",
+  BOMBERO:"1F469-200D-1F692",
+  CANTANTE:"1F469-200D-1F3A4",
+  PINTOR:"1F9D1-200D-1F3A8",
+  DIENTE:"1F9B7",
+  OJOS:"1F440",
+  PAPEL:"1F9FB",
+  SILLA:"1FA91",
 
-// OpenMoji: usa el nombre de archivo del emoji (codepoints en HEX, con -FE0F si aplica)
-const EMOJI_MAP = {
-  "GATO":"1F408",
-  "PATO":"1F986",
-  "VACA":"1F404",
-  "LOBO":"1F43A",
-  "FOCA":"1F9AD",
-  "LEON":"1F981",
-  "RANA":"1F438",
-  "SAPO":"1F438",
-  "TORO":"1F402",
-  "BUEY":"1F402",
-  "MONO":"1F412",
-  "LORO":"1F99C",
-  "BUHO":"1F989",
-  "PAVO":"1F983",
-  "RATA":"1F400",
-  "ORCA":"1F40B",
-  "RENO":"1F98C",
-  "AVES":"1F426",
-  "OSOS":"1F43B",
-  "MULA":"1F40E",
+  DUCHA:"1F6BF",
+  CAMA:"1F6CF",
+  VENTANA:"1FA9F",
+  PUERTA:"1F6AA",
+  IMAN:"1F9F2",
+  ESCALERA:"1FA9C",
+  PALA:"1FA8F",
+  DESTORNILLADOR:"1FA9B",
+  BOMBA:"1F4A3",
+  ARCO:"1F3F9",
 
-  "PERA":"1F350",
-  "KIWI":"1F95D",
-  "UVAS":"1F347",
-  "PINA":"1F34D",
-  "NUEZ":"1F95C",
-  "PAPA":"1F954",
-  "MIEL":"1F36F",
-  "TACO":"1F32E",
-  "SOPA":"1F963",
-  "CAFE":"2615",
-  "COLA":"1F964",
-  "AGUA":"1F4A7",
+  LLAVE:"1F5DD",
+  MARTILLO:"1F528",
+  TIJERAS:"2702",
+  REGLA:"1F4CF",
+  BOLI:"1F58A",
+  LAPIZ:"270F",
+  LINTERNA:"1F526",
+  TELE:"1F4FA",
+  RATON:"1F5B1",
+  ORDENADOR:"1F5A5",
 
-  "LUNA":"1F319",
-  "NUBE":"2601",
-  "RAYO":"26A1",
-  "NIDO":"1FAB9",
-  "ROCA":"1FAA8",
-  "HOJA":"1F343",
-  "FLOR":"1F33C",
-  "ROSA":"1F339",
-  "PINO":"1F332",
-  "SETA":"1F344",
-  "LAVA":"1F30B",
-  "HIEL":"1F9CA",
-  "ARCO":"1F308",
-  "OLAS":"1F30A",
-  "LAGO":"1F3DE-FE0F",
-  "ISLA":"1F3DD-FE0F",
-  "RIOS":"1F3DE-FE0F",
+  ENCHUFE:"1F50C",
+  BATERIA:"1F50B",
+  TELEFONO:"260E",
+  TROMPETA:"1F3BA",
+  PIANO:"1F3B9",
+  MICROFONO:"1F3A4",
+  MUSICA:"1F3B5",
+  CAMPANA:"1F514",
+  CORONA:"1F451",
+  SOMBRERO:"1F3A9",
 
-  "CAMA":"1F6CF-FE0F",
-  "BOTA":"1F462",
-  "CAPA":"1F9E5",
-  "DADO":"1F3B2",
-  "BOLA":"26BD",
-  "CUBO":"1FAA3",
-  "BOLI":"1F58A-FE0F",
-  "PALA":"1F9F9",
-  "PICO":"26CF-FE0F",
-  "TELA":"1F9F6",
-  "SACO":"1F392",
-  "BOTE":"1F6A4",
-  "TAPA":"1F9E2",
-  "FARO":"1F5FC",
-  "PILA":"1F50B",
-  "GASA":"1FA79",
-  "LUPA":"1F50D",
-  "MAPA":"1F5FA-FE0F",
-  "CAJA":"1F4E6",
-  "ROPA":"1F455",
+  GUANTE:"1F9E4",
+  CALCETIN:"1F9E6",
+  GAFAS:"1F453",
+  TRONCO:"1FABE",
+  SETA:"1F344",
+  COCODRILO:"1F40A",
+  DINOSAURIO:"1F996",
+  SERPIENTE:"1F40D",
+  TORTUGA:"1F422",
+  CANGREJO:"1F980",
 
-  "TAXI":"1F695",
-  "TREN":"1F686",
-  "BICI":"1F6B2",
-  "MOTO":"1F3CD-FE0F",
-  "AUTO":"1F697",
-  "NAVE":"1F6A2",
-  "VELA":"26F5",
+  JARRON:"1F3FA",
+  CUCHILLO:"1F52A",
+  CUCHARA:"1F944",
+  BIBERON:"1F37C",
+  CARAMELO:"1F36C",
+  PIRULETA:"1F36D",
+  PASTEL:"1F370",
+  DONUT:"1F369",
+  TARTA:"1F382",
+  CHOCOLATE:"1F36B",
 
-  "AZUL":"1F535",
-  "ROJO":"1F534",
-  "GRIS":"26AA",
-  "FRIO":"1F976",
-  "ALTO":"2B06-FE0F",
-  "BAJO":"2B07-FE0F",
-  "FINO":"2728",
+  ZANAHORIA:"1F955",
+  AGUACATE:"1F951",
+  COCO:"1F965",
+  CEREZAS:"1F352",
+  FRESA:"1F353",
+  PERA:"1F350",
+  MANZANA:"1F34E",
+  LIMON:"1F34B",
+  PLATANO:"1F34C",
+  SANDIA:"1F349",
 
-  "RISA":"1F602",
-  "BESO":"1F618",
-  "AMOR":"1F9E1",
-  "ODIO":"1F4A2",
-  "DUDA":"2753",
-  "PENA":"1F622",
-  "BIEN":"1F44D",
-  "MALO":"1F44E",
-
-  "TAZA":"2615",
-  "VASO":"1F943",
-  "CENA":"1F37D-FE0F",
-  "FOTO":"1F4F7",
-  "CINE":"1F3AC",
-  "TELE":"1F4FA",
-  "VIDA":"1F331",
-  "TIRO":"1F3AF",
-  "HORA":"23F0"
+  SUSHI:"1F363",
+  HUEVO:"1F95A",
+  PERRITO:"1F32D",
+  PIZZA:"1F355",
+  HAMBURGUESA:"1F354",
+  POLLO:"1F357",
+  BARRA:"1F956",
+  CROISSANT:"1F950",
+  "CASTAÑA":"1F330",
+  BROCOLI:"1F966"
 };
+
+/* LISTA DE PALABRAS AUTOMÁTICA (no mantienes dos listas) */
+const WORDS = Object.keys(IMG_MAP);
 
 /* =========================
    ESTADO
@@ -578,29 +546,33 @@ function speakWord(onEnd){
 }
 
 /* =========================
-   IMAGEN: OpenMoji SVG (nítido siempre)
+   IMAGEN: OpenMoji por URL (SVG + fallback PNG)
    ========================= */
-function openMojiUrl(code){
-  // SVG color (nítido)
-  return `https://openmoji.org/data/color/svg/${code}.svg`;
+function openMojiSvg(code){
+  return `https://openmoji.org/data/color/svg/${encodeURIComponent(code)}.svg`;
+}
+function openMojiPng(code){
+  return `https://openmoji.org/data/color/png/618x618/${encodeURIComponent(code)}.png`;
 }
 
 function updateImage(){
-  const code = EMOJI_MAP[target];
+  const code = IMG_MAP[target];
   if(!code){
-    // No debería pasar (tenemos 100/100 mapeadas)
     elImg.removeAttribute("src");
     elImg.alt = "";
     return;
   }
 
   elImg.alt = target;
-  elImg.src = openMojiUrl(code);
+  elImg.onerror = null;
 
-  // Si por lo que sea falla alguna, intenta PNG como plan B
+  // intenta SVG primero (nítido)
+  elImg.src = openMojiSvg(code);
+
+  // si falla, PNG
   elImg.onerror = () => {
     elImg.onerror = null;
-    elImg.src = `https://openmoji.org/data/color/png/618x618/${code}.png`;
+    elImg.src = openMojiPng(code);
   };
 }
 
@@ -665,7 +637,7 @@ function render(){
       e.dataTransfer.setData("text/plain", JSON.stringify({ from:"pool", id:item.id }));
     });
 
-    // aceptar devolución desde slot (drag desde slot -> soltar sobre un tile del pool)
+    // devolución desde slot al pool
     d.addEventListener("dragover", (e)=> { if(!completed) e.preventDefault(); });
     d.addEventListener("drop", (e)=>{
       if(completed) return;
@@ -719,7 +691,7 @@ function render(){
       const data = safeParse(e.dataTransfer.getData("text/plain"));
       if(!data) return;
 
-      // pool -> slot (solo si slot vacío)
+      // pool -> slot (solo si vacío)
       if(data.from === "pool"){
         const p = poolItems.find(x=>x.id === data.id);
         if(!p || p.used) return;
